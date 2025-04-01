@@ -1,4 +1,4 @@
-name: Delta deploy to UAT
+name: Delta deploy to PLAYGROUND
 
 on:
   push:
