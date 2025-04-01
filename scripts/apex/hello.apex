@@ -7,5 +7,5 @@
 
 string tempvar = 'Enter_your_name_here';
 System.debug('Hello World!');
-System.debug('Trigger workflow test: test #3');
+System.debug('Trigger workflow test: test #4');
 System.debug('My name is ' + tempvar);
