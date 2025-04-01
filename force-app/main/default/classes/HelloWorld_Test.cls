@@ -1,5 +1,5 @@
 @isTest
-private class HelloWorldTest {
+private class HelloWorld_Test {
     @isTest
     static void testHelloWorldConstructor() {
         Test.startTest();
