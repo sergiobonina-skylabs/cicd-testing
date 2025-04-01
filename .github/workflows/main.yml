@@ -49,5 +49,6 @@ jobs:
           if [ -z "$APEX_CLASSES" ]; then
             sf project deploy start --manifest package/package.xml --wait 30
           else
+            echo "APEX_CLASSES variable is: $APEX_CLASSES"
             sf project deploy start --manifest package/package.xml --wait 30 --test-level RunSpecifiedTests --tests "$APEX_CLASSES"
           fi
