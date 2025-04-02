@@ -1,11 +1,9 @@
-name: Delta deploy to PROD (on PR merge to `main`)
+name: Delta deploy to PROD (on new commits on the `main` branch)
 
 on:
-  pull_request:
+  push:
     branches:
       - main
-    types:
-      - closed
 
 jobs:
   Delta-Deploy-PROD:
@@ -29,12 +27,24 @@ jobs:
           pip install yq
           xq --version
 
-      # Checkout the PR source branch
-      - name: Checkout PR source branch
-        if: github.event.pull_request.head.ref != ''
+      # Checkout the main branch first
+      - name: Checkout main branch
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure we have full history for comparison
+
+      # Create a temporary branch to avoid conflicts with 'develop'
+      - name: Create a temporary branch for PR
         run: |
-          git fetch origin pull/${{ github.event.pull_request.number }}/head:${{ github.head_ref }}
-          git checkout ${{ github.head_ref }}
+          git checkout -b temp-branch
+          echo "Temporary branch created to avoid conflicts"
+
+      # Fetch the PR source branch into this temporary branch
+      - name: Fetch the PR source branch
+        run: |
+          git fetch origin pull/${{ github.event.pull_request.number }}/head:temp-branch-pr
+          git checkout temp-branch-pr
+          echo "Checked out the PR branch"
 
       # Authenticate to target org
       - name: Authenticate to Org
