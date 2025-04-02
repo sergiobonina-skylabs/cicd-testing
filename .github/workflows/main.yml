@@ -36,7 +36,7 @@ jobs:
       # Checkout the PR source branch (the one that was merged into main)
       - name: Checkout the PR source branch
         run: |
-          # Fai il fetch del branch sorgente della PR (quello che è stato unito a main)
+          # Fai il fetch del branch sorgente della PR (quello che è stato unito a main #2)
           git fetch origin pull/${{ github.event.pull_request.number }}/head:refs/remotes/origin/${{ github.head_ref }}
           # Checkout del branch sorgente
           git checkout ${{ github.head_ref }}
