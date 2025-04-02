@@ -1,0 +1,55 @@
+name: PR - Check-only delta deploy to UAT
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      - main
+
+jobs:
+  Code-Analysis:
+    runs-on:  ubuntu-latest
+    steps:
+      # Checkout the code in the pull request
+      - name: 'Checkout source code'
+        uses: actions/checkout@v3
+      # Install PMD
+      - name: Install PMD
+        run: wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F6.51.0/pmd-bin-6.51.0.zip && unzip pmd-bin-6.51.0.zip
+      # Execute PMD
+      - name: Execute PMD
+        run: pmd-bin-6.51.0/bin/run.sh pmd --minimum-priority 2 -R apex-rules.xml -d force-app -f text -l apex
+
+  Check-Only-Deploy:
+    runs-on:  ubuntu-latest
+    steps:
+      # Install Salesforce CLI
+      - name: Install Salesforce CLI
+        run: |
+          npm install @salesforce/cli --global
+          sf --version
+      # Install plugins
+      - name: Install plugins
+        run: |
+          echo y | sf plugins install @salesforce/plugin-devops-center
+          sf plugins
+      # Install utilities
+      - name: Install utilities
+        run: |
+         pip install yq
+         xq --version
+      # Checkout the code in the pull request
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      # Authenticate to target org
+      - name: "Authenticate to Org"
+        run: |
+          echo ${{ secrets.SFDXAUTHURL_UAT }} > ./SF_URL.txt
+          sf org login sfdx-url --sfdx-url-file ./SF_URL.txt --set-default
+      # Check-only deploy
+      - name: "Check-only delta deploy"
+        run: |
+          sf project deploy start --source-dir force-app --dry-run
+          echo "--- Deployment Simulation Completed ---"
