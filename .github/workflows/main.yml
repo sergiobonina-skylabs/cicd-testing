@@ -37,9 +37,9 @@ jobs:
       - name: Checkout the PR source branch
         run: |
           # Fetch the source branch of the PR (the one merged into main)
-          git fetch origin pull/${{ github.event.pull_request.number }}/head:${{ github.event.pull_request.head.ref }}
+          git fetch origin pull/${{ github.event.pull_request.number }}/head:${{ github.head_ref }}
           # Checkout the PR source branch
-          git checkout ${{ github.event.pull_request.head.ref }}
+          git checkout ${{ github.head_ref }}
 
       # Authenticate to target org
       - name: "Authenticate to Org"
