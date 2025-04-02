@@ -54,7 +54,7 @@ jobs:
       # Authenticate to target org
       - name: Authenticate to Org
         run: |
-          echo ${{ secrets.SFDXAUTHURL_PROD }} > ./SFDX_URL.txt
+          echo ${{ secrets.SFDXAUTHURL_UAT }} > ./SFDX_URL.txt
           sf org login sfdx-url --sfdx-url-file ./SFDX_URL.txt --set-default
 
       # Compute the common ancestor commit between main and the PR source branch
