@@ -16,26 +16,41 @@ jobs:
         run: pmd-bin-6.51.0/bin/run.sh pmd --minimum-priority 2 -R apex-rules.xml -d force-app -f text -l apex
 
   Deploy:
-    if: github.event.review.state == 'approved' && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     steps:
+      - name: Debug Event
+        run: echo "${{ toJSON(github.event) }}"
+
+      - name: Check approval and target branch
+        if: github.event.review.state == 'approved' && github.event.pull_request.base.ref == 'main'
+        run: echo "✅ PR Approved for Main, proceeding with deployment"
+
       - name: Install Salesforce CLI
+        if: github.event.review.state == 'approved' && github.event.pull_request.base.ref == 'main'
         run: |
           npm install @salesforce/cli --global
           sf --version
+
       - name: Install plugins
+        if: github.event.review.state == 'approved' && github.event.pull_request.base.ref == 'main'
         run: |
           echo y | sf plugins install @salesforce/plugin-devops-center
           sf plugins
+
       - name: Install utilities
+        if: github.event.review.state == 'approved' && github.event.pull_request.base.ref == 'main'
         run: |
          pip install yq
          xq --version
+
       - name: Checkout
+        if: github.event.review.state == 'approved' && github.event.pull_request.base.ref == 'main'
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
       - name: Compute delta
+        if: github.event.review.state == 'approved' && github.event.pull_request.base.ref == 'main'
         run: |
           export BASE_COMMIT=$(git merge-base origin/main HEAD)
           sf project deploy start --source-dir force-app --source-dir $(git diff --name-only $BASE_COMMIT HEAD)
