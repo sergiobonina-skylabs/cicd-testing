@@ -1,12 +1,14 @@
-name: Delta deploy to PROD (on new commits on the `main` branch)
+name: Delta deploy to PROD (on PR merge to `main`)
 
 on:
-  push:
+  pull_request:
     branches:
       - main
+    types:
+      - closed
 
 jobs:
-  Delta-Deploy-PLAYGROUND:
+  Delta-Deploy-PROD:
     runs-on: ubuntu-latest
     steps:
       # Install Salesforce CLI
@@ -27,31 +29,23 @@ jobs:
           pip install yq
           xq --version
 
-      # Checkout the code on the main branch
-      - name: Checkout main branch
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Ensure we have full history for comparison
-
-      # Checkout the PR source branch (the one that was merged into main)
-      - name: Checkout the PR source branch
+      # Checkout the PR source branch
+      - name: Checkout PR source branch
+        if: github.event.pull_request.head.ref != ''
         run: |
-          # Fetch the source branch of the PR (the one merged into main)
           git fetch origin pull/${{ github.event.pull_request.number }}/head:${{ github.head_ref }}
-          # Checkout the PR source branch
           git checkout ${{ github.head_ref }}
 
       # Authenticate to target org
-      - name: "Authenticate to Org"
+      - name: Authenticate to Org
         run: |
-          echo ${{ secrets.SFDXAUTHURL_UAT }} > ./SFDX_URL.txt
+          echo ${{ secrets.SFDXAUTHURL_PROD }} > ./SFDX_URL.txt
           sf org login sfdx-url --sfdx-url-file ./SFDX_URL.txt --set-default
 
       # Compute the common ancestor commit between main and the PR source branch
       - name: Compute common ancestor commit
         id: compute-ancestor
         run: |
-          # Find the common ancestor commit between main and the PR branch
           export BASE_COMMIT=$(git merge-base origin/main HEAD)
           echo "BASE_COMMIT=$BASE_COMMIT" >> $GITHUB_ENV
           echo "Base commit: $BASE_COMMIT"
@@ -59,17 +53,13 @@ jobs:
       # Run delta with sfdx-git-delta to generate package.xml with changed files
       - name: Compute delta using sfdx-git-delta
         run: |
-          # Get the delta (changed files) between main and the PR branch
           sf sgd:source:delta --to "HEAD" --from ${{ env.BASE_COMMIT }} --output-dir "." -i .forceignore
           echo "--- package.xml generated with added and modified metadata ---"
           cat package/package.xml
           echo
 
-      # Check-only deploy to simulate the deployment
-      - name: "Check-only delta deploy"
+      # Deploy to PROD
+      - name: Deploy to PROD
         run: |
-          echo "--- Delta Deploy Simulation ---"
-          
-          # Perform the check-only deploy (dry-run)
-          sf project deploy start --manifest package/package.xml --dry-run
-          echo "--- Deployment Simulation Completed ---"
+          sf project deploy start --manifest package/package.xml
+          echo "--- Deployment to PROD Completed ---"
