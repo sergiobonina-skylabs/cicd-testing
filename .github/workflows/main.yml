@@ -1,13 +1,16 @@
-name: Delta deploy to PROD (on new commits on the `main` branch)
+name: Delta deploy to PROD (on PR close)
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - main
 
 jobs:
   Delta-Deploy-PROD:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true # Esegui solo se la PR è stata effettivamente unita a main
     steps:
       # Install Salesforce CLI
       - name: Install Salesforce CLI
@@ -27,32 +30,25 @@ jobs:
           pip install yq
           xq --version
 
-      # Checkout the main branch first
+      # Checkout the main branch (perché il codice è già stato mergiato lì)
       - name: Checkout main branch
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Ensure we have full history for comparison
+          fetch-depth: 0 # Assicuriamoci di avere la cronologia completa
 
-      # Create a temporary branch to avoid conflicts with 'develop'
-      - name: Create a temporary branch for PR
+      # Determina il branch della PR chiusa
+      - name: Determina il branch della PR chiusa
         run: |
-          git checkout -b temp-branch
-          echo "Temporary branch created to avoid conflicts"
+          echo "Branch sorgente della PR chiusa: ${{ github.event.pull_request.head.ref }}"
+          echo "SOURCE_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
 
-      # Fetch the PR source branch into this temporary branch
-      - name: Fetch the PR source branch
+      # Fetch del branch della PR per calcolare il delta
+      - name: Fetch PR branch
         run: |
-          git fetch origin pull/${{ github.event.pull_request.number }}/head:temp-branch-pr
-          git checkout temp-branch-pr
-          echo "Checked out the PR branch"
+          git fetch origin ${{ github.event.pull_request.head.ref }}:${{ github.event.pull_request.head.ref }}
+          git checkout ${{ github.event.pull_request.head.ref }}
 
-      # Authenticate to target org
-      - name: Authenticate to Org
-        run: |
-          echo ${{ secrets.SFDXAUTHURL_PROD }} > ./SFDX_URL.txt
-          sf org login sfdx-url --sfdx-url-file ./SFDX_URL.txt --set-default
-
-      # Compute the common ancestor commit between main and the PR source branch
+      # Trova il commit base tra main e il branch della PR
       - name: Compute common ancestor commit
         id: compute-ancestor
         run: |
@@ -60,15 +56,20 @@ jobs:
           echo "BASE_COMMIT=$BASE_COMMIT" >> $GITHUB_ENV
           echo "Base commit: $BASE_COMMIT"
 
-      # Run delta with sfdx-git-delta to generate package.xml with changed files
+      # Authenticate to Salesforce Org
+      - name: Authenticate to Org
+        run: |
+          echo ${{ secrets.SFDXAUTHURL_PROD }} > ./SFDX_URL.txt
+          sf org login sfdx-url --sfdx-url-file ./SFDX_URL.txt --set-default
+
+      # Calcola il delta con sfdx-git-delta
       - name: Compute delta using sfdx-git-delta
         run: |
           sf sgd:source:delta --to "HEAD" --from ${{ env.BASE_COMMIT }} --output-dir "." -i .forceignore
-          echo "--- package.xml generated with added and modified metadata ---"
+          echo "--- package.xml generato con le modifiche rilevate ---"
           cat package/package.xml
-          echo
 
-      # Deploy to PROD
+      # Esegui il deploy su PROD
       - name: Deploy to PROD
         run: |
           sf project deploy start --manifest package/package.xml
