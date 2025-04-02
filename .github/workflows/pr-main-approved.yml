@@ -6,43 +6,35 @@ on:
 
 jobs:
   Code-Analysis:
-    runs-on:  ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
-      # Checkout the code in the pull request
       - name: 'Checkout source code'
         uses: actions/checkout@v3
-      # Install PMD
       - name: Install PMD
         run: wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F6.51.0/pmd-bin-6.51.0.zip && unzip pmd-bin-6.51.0.zip
-      # Execute PMD
       - name: Execute PMD
         run: pmd-bin-6.51.0/bin/run.sh pmd --minimum-priority 2 -R apex-rules.xml -d force-app -f text -l apex
 
   Deploy:
-    if: github.event.review.state == 'approved' && github.base_ref == 'main'
-    runs-on:  ubuntu-latest
+    if: github.event.review.state == 'approved' && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
     steps:
-      # Install Salesforce CLI
       - name: Install Salesforce CLI
         run: |
           npm install @salesforce/cli --global
           sf --version
-      # Install plugins
       - name: Install plugins
         run: |
           echo y | sf plugins install @salesforce/plugin-devops-center
           sf plugins
-      # Install utilities
       - name: Install utilities
         run: |
          pip install yq
          xq --version
-      # Checkout the code in the pull request
       - name: Checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      # Determine delta between main and PR branch
       - name: Compute delta
         run: |
           export BASE_COMMIT=$(git merge-base origin/main HEAD)
