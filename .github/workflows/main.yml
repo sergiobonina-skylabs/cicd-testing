@@ -42,7 +42,7 @@ jobs:
       # Fetch the PR source branch into this temporary branch
       - name: Fetch the PR source branch
         run: |
-          git fetch origin pull/${{ github.event.pull_request.number }}/head:temp-branch-pr
+          git fetch origin pull${{ github.event.pull_request.number }}/head:temp-branch-pr
           git checkout temp-branch-pr
           echo "Checked out the PR branch"
 
