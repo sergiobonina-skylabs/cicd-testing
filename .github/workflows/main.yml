@@ -1,4 +1,4 @@
-name: Delta deploy to PLAYGROUND
+name: Delta deploy to PLAYGROUND (on Commit)
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  Delta-Deploy-UAT:
+  Delta-Deploy-PLAYGROUND:
     runs-on:  ubuntu-latest
     steps:
       # Install Salesforce CLI

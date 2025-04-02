@@ -1,4 +1,4 @@
-name: PR - Deploy delta to UAT
+name: PR - Deploy delta to MAIN (PROD Org)
 
 on:
   pull_request_review:
