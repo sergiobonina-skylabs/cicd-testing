@@ -15,40 +15,30 @@ jobs:
           npm install @salesforce/cli --global
           sf --version
 
-      # Install plugins
-      - name: Install plugins
+      # Install SFDX-Git-Delta
+      - name: Install sfdx-git-delta
         run: |
-          echo y | sf plugins install @salesforce/plugin-devops-center
+          echo y | sf plugins install sfdx-git-delta
           sf plugins
 
       # Install utilities
       - name: Install utilities
         run: |
-         pip install yq
-         xq --version
+          pip install yq
+          xq --version
 
-      # Checkout the main branch (the branch that received the push)
+      # Checkout the code on the main branch
       - name: Checkout main branch
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Assicuriamoci di avere tutta la cronologia per il confronto dei commit
+          fetch-depth: 0  # Ensure we have full history for comparison
 
-      # Compute the common ancestor commit between main and the pushed branch
-      - name: Compute common ancestor commit
-        id: compute-ancestor
+      # Checkout the PR source branch (the one that was merged into main)
+      - name: Checkout the PR source branch
         run: |
-          # Troviamo il commit base tra main e il branch di origine
-          export BASE_COMMIT=$(git merge-base origin/main HEAD)
-          echo "BASE_COMMIT=$BASE_COMMIT" >> $GITHUB_ENV
-          echo "Base commit: $BASE_COMMIT"
-
-      # Eseguiamo il diff tra main e il commit base
-      - name: Compute delta (diff between HEAD of main and common ancestor)
-        run: |
-          # Otteniamo i file modificati tra main e il commit base
-          git diff --name-only ${{ env.BASE_COMMIT }} HEAD > changed_files.txt
-          echo "Changed files between main and branch:" 
-          cat changed_files.txt
+          # Fetch the source branch of the PR (the one merged into main)
+          git fetch origin +refs/heads/${{ github.head_ref }}:refs/remotes/origin/${{ github.head_ref }}
+          git checkout ${{ github.head_ref }}
 
       # Authenticate to target org
       - name: "Authenticate to Org"
@@ -56,25 +46,29 @@ jobs:
           echo ${{ secrets.SFDXAUTHURL_UAT }} > ./SFDX_URL.txt
           sf org login sfdx-url --sfdx-url-file ./SFDX_URL.txt --set-default
 
-      # Compute delta deploy based on changed files
-      - name: "Delta deploy"
+      # Compute the common ancestor commit between main and the PR source branch
+      - name: Compute common ancestor commit
+        id: compute-ancestor
         run: |
-          # Genera il package.xml con i file modificati
+          # Find the common ancestor commit between main and the PR branch
+          export BASE_COMMIT=$(git merge-base origin/main HEAD)
+          echo "BASE_COMMIT=$BASE_COMMIT" >> $GITHUB_ENV
+          echo "Base commit: $BASE_COMMIT"
+
+      # Run delta with sfdx-git-delta to generate package.xml with changed files
+      - name: Compute delta using sfdx-git-delta
+        run: |
+          # Get the delta (changed files) between main and the PR branch
           sf sgd:source:delta --to "HEAD" --from ${{ env.BASE_COMMIT }} --output-dir "." -i .forceignore
           echo "--- package.xml generated with added and modified metadata ---"
           cat package/package.xml
           echo
-          echo "--- Apex Tests to be executed ---"
+
+      # Check-only deploy to simulate the deployment
+      - name: "Check-only delta deploy"
+        run: |
+          echo "--- Delta Deploy Simulation ---"
           
-          export APEX_CLASSES=$(xq . < package/package.xml | jq '.Package.types | [.] | flatten | map(select(.name=="ApexClass")) | .[] | .members | [.] | flatten | map(select(. | index("*") | not)) | unique | join(" ")' -r)
-          echo $APEX_CLASSES
-          echo
-          echo "--- Delta Deploy ---"
-          
-          # Verifica se ci sono test da eseguire
-          if [ -z "$APEX_CLASSES" ]; then
-            sf project deploy start --manifest package/package.xml --wait 30
-          else
-            echo "APEX_CLASSES variable is: $APEX_CLASSES"
-            sf project deploy start --manifest package/package.xml --wait 30 --test-level RunSpecifiedTests --tests $APEX_CLASSES
-          fi
+          # Perform the check-only deploy (dry-run)
+          sf project deploy start --manifest package/package.xml --dry-run
+          echo "--- Deployment Simulation Completed ---"
