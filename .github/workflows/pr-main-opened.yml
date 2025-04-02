@@ -51,5 +51,6 @@ jobs:
       # Check-only deploy
       - name: "Check-only delta deploy"
         run: |
-          sf project deploy start --source-dir force-app --dry-run
+          export BASE_COMMIT=$(git merge-base origin/main HEAD)
+          sf project deploy start --source-dir force-app --source-dir $(git diff --name-only $BASE_COMMIT HEAD) --dry-run
           echo "--- Deployment Simulation Completed ---"

@@ -42,13 +42,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      # Authenticate to target org
-      - name: "Authenticate to Org"
+      # Determine delta between main and PR branch
+      - name: Compute delta
         run: |
-          echo ${{ secrets.SFDXAUTHURL_UAT }} > ./SF_URL.txt
-          sf org login sfdx-url --sfdx-url-file ./SF_URL.txt --set-default
-      # Deploy to Salesforce
-      - name: "Deploy delta to UAT"
-        run: |
-          sf project deploy start --source-dir force-app
+          export BASE_COMMIT=$(git merge-base origin/main HEAD)
+          sf project deploy start --source-dir force-app --source-dir $(git diff --name-only $BASE_COMMIT HEAD)
           echo "--- Deployment Completed Successfully ---"
